@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Memory Game – Multiplayer</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg-deep:    #0d0d1a;
+    --bg-mid:     #13132a;
+    --bg-card:    #1e1b3a;
+    --bg-card2:   #252248;
+    --border:     #2e2b55;
+    --purple:     #7b5ea7;
+    --purple-lt:  #a67dd4;
+    --pink:       #e94f8b;
+    --pink-lt:    #ff6fa8;
+    --gold:       #f5a623;
+    --gold-lt:    #ffd166;
+    --green:      #27c985;
+    --green-lt:   #3dffa6;
+    --blue:       #3d8ef5;
+    --text:       #e8e4ff;
+    --text-dim:   #8885a8;
+    --card-face:  #2a2550;
+    --card-hover: #352f6b;
+    --matched:    #1b6b4a;
+    --revealed:   #5b3b8c;
+    --shadow:     0 8px 32px #0006;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg-deep);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-x: hidden;
+  }
+
+  /* ── Animated background ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 20%, #1a0a3a55 0%, transparent 60%),
+      radial-gradient(ellipse 50% 60% at 80% 80%, #0a1a3a55 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  /* ── Header ── */
+  #header {
+    position: relative; z-index: 10;
+    display: flex; align-items: center; gap: 0.7rem;
+    padding: 1.5rem 2rem 0.5rem;
+    width: 100%; justify-content: center;
+  }
+  .logo-icon {
+    width: 42px; height: 42px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--purple) 0%, var(--pink) 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem; flex-shrink: 0;
+    box-shadow: 0 4px 16px #e94f8b55;
+  }
+  #header h1 {
+    font-size: 2.2rem; font-weight: 900;
+    background: linear-gradient(90deg, var(--purple-lt) 0%, #c9a0f0 50%, var(--pink) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    letter-spacing: 1px;
+  }
+  #header p {
+    color: var(--text-dim); font-size: 0.85rem; text-align: center;
+    margin-top: 0.15rem; font-weight: 500;
+  }
+  #header-inner { display: flex; flex-direction: column; align-items: center; }
+
+  /* ── Connection dot ── */
+  #conn-dot {
+    position: fixed; bottom: 1.1rem; right: 1.4rem; z-index: 100;
+    display: flex; align-items: center; gap: 0.45rem;
+    font-size: 0.78rem; color: var(--text-dim);
+  }
+  #conn-dot span {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: #555; display: inline-block;
+    transition: background .3s;
+  }
+  #conn-dot.connected span { background: var(--green); box-shadow: 0 0 6px var(--green); }
+
+  /* ── Screens ── */
+  .screen {
+    position: relative; z-index: 10;
+    width: 100%; display: flex; flex-direction: column; align-items: center;
+  }
+  .screen.hidden { display: none; }
+
+  /* ── Lobby ── */
+  #lobby-box {
+    background: var(--bg-mid);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2rem 2.2rem;
+    width: 420px; max-width: 95vw;
+    margin-top: 1rem;
+    box-shadow: var(--shadow);
+    display: flex; flex-direction: column; gap: 1.1rem;
+  }
+  .lobby-title {
+    text-align: center; font-size: 1.25rem; font-weight: 800;
+    color: var(--gold);
+  }
+  .field-label {
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 1.5px;
+    color: var(--text-dim); text-transform: uppercase; margin-bottom: 0.3rem;
+  }
+  .inp {
+    width: 100%; padding: 0.75rem 1rem;
+    border-radius: 10px; border: 1.5px solid var(--border);
+    background: var(--bg-card); color: var(--text);
+    font-size: 1rem; font-family: inherit; font-weight: 600;
+    outline: none; transition: border-color .2s;
+  }
+  .inp:focus { border-color: var(--purple-lt); }
+  .inp::placeholder { color: var(--text-dim); font-weight: 500; }
+
+  .btn-row { display: flex; gap: 0.7rem; }
+
+  .btn {
+    flex: 1; padding: 0.75rem 1rem; border-radius: 10px; border: none;
+    cursor: pointer; font-size: 1rem; font-weight: 800;
+    font-family: inherit; transition: transform .15s, box-shadow .15s;
+    display: flex; align-items: center; justify-content: center; gap: 0.4rem;
+  }
+  .btn:hover { transform: translateY(-2px); }
+  .btn:active { transform: translateY(0); }
+
+  .btn-create {
+    background: linear-gradient(135deg, var(--pink) 0%, var(--purple) 100%);
+    color: #fff;
+    box-shadow: 0 4px 16px #e94f8b44;
+  }
+  .btn-create:hover { box-shadow: 0 6px 24px #e94f8b66; }
+
+  .btn-joinroom {
+    background: linear-gradient(135deg, var(--blue) 0%, #5b8fff 100%);
+    color: #fff;
+    box-shadow: 0 4px 16px #3d8ef544;
+  }
+  .btn-joinroom:hover { box-shadow: 0 6px 24px #3d8ef566; }
+
+  .divider {
+    display: flex; align-items: center; gap: 0.7rem;
+    color: var(--text-dim); font-size: 0.78rem; font-weight: 700;
+    letter-spacing: 2px;
+  }
+  .divider::before, .divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+
+  .btn-joingame {
+    background: linear-gradient(135deg, var(--green) 0%, #1fbf7a 100%);
+    color: #fff; width: 100%;
+    box-shadow: 0 4px 16px #27c98544;
+    font-size: 1.05rem;
+  }
+  .btn-joingame:hover { box-shadow: 0 6px 24px #27c98566; }
+
+  #status {
+    text-align: center; color: var(--pink); font-size: 0.88rem;
+    font-weight: 600; min-height: 1.2em;
+  }
+
+  /* ── Waiting Room ── */
+  #waiting-box {
+    background: var(--bg-mid);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 2rem 2.2rem;
+    width: 420px; max-width: 95vw;
+    margin-top: 1rem;
+    box-shadow: var(--shadow);
+    display: flex; flex-direction: column; gap: 1.1rem;
+    align-items: center; text-align: center;
+  }
+  .waiting-title {
+    font-size: 1.3rem; font-weight: 900;
+    color: var(--blue);
+  }
+  .waiting-emoji { font-size: 1.8rem; }
+  #waiting-subtitle { color: var(--text-dim); font-size: 0.88rem; }
+
+  #room-code-wrap {
+    display: flex; align-items: center; gap: 0.8rem;
+    margin: 0.3rem 0;
+  }
+  #room-code {
+    background: linear-gradient(135deg, var(--gold) 0%, #ffa500 100%);
+    color: #1a0800;
+    font-size: 2.2rem; font-weight: 900;
+    padding: 0.4rem 1.4rem;
+    border-radius: 14px;
+    letter-spacing: 4px;
+    box-shadow: 0 4px 16px #f5a62344;
+    font-family: 'Space Grotesk', monospace;
+  }
+  .btn-copy {
+    background: var(--bg-card2); border: 1px solid var(--border);
+    color: var(--text-dim); padding: 0.5rem 0.9rem;
+    border-radius: 8px; cursor: pointer; font-size: 0.82rem;
+    font-weight: 700; font-family: inherit;
+    transition: background .2s, color .2s;
+  }
+  .btn-copy:hover { background: var(--border); color: var(--text); }
+
+  #auto-start-hint {
+    display: flex; align-items: center; gap: 0.5rem;
+    font-size: 0.84rem; color: var(--text-dim); font-weight: 600;
+  }
+  #auto-start-hint .dot-green {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--green); box-shadow: 0 0 6px var(--green);
+    flex-shrink: 0;
+  }
+
+  #player-chips {
+    display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center;
+  }
+  .player-chip {
+    display: flex; align-items: center; gap: 0.35rem;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 20px; padding: 0.35rem 0.9rem;
+    font-size: 0.9rem; font-weight: 700;
+  }
+  .player-chip .chip-icon { font-size: 0.85rem; }
+  .player-chip.creator { border-color: var(--gold); color: var(--gold); }
+
+  #btn-start {
+    display: none; width: 100%;
+    background: linear-gradient(135deg, var(--green) 0%, #1fbf7a 100%);
+    color: #fff; padding: 0.85rem; border-radius: 12px; border: none;
+    cursor: pointer; font-size: 1.1rem; font-weight: 900;
+    font-family: inherit; letter-spacing: 0.5px;
+    box-shadow: 0 4px 16px #27c98544;
+    transition: transform .15s, box-shadow .15s;
+  }
+  #btn-start:hover { transform: translateY(-2px); box-shadow: 0 6px 24px #27c98566; }
+  #btn-start:disabled { background: #2a2a4a; color: var(--text-dim); cursor: default; transform: none; box-shadow: none; }
+
+  #start-hint { font-size: 0.82rem; color: var(--text-dim); font-weight: 600; }
+
+  /* ── Game Screen ── */
+  #game-screen { padding: 0.5rem 1rem 2rem; max-width: 680px; width: 100%; gap: 0.9rem; }
+
+  /* Turn banner */
+  #turn-banner-wrap { width: 100%; display: flex; justify-content: flex-start; }
+  #turn-banner {
+    display: inline-flex; align-items: center; gap: 0.5rem;
+    padding: 0.45rem 1.1rem; border-radius: 20px;
+    font-size: 0.95rem; font-weight: 800;
+    background: var(--gold);
+    color: #1a0800;
+    box-shadow: 0 3px 12px #f5a62344;
+    transition: background .3s, color .3s;
+  }
+  #turn-banner.your-turn {
+    background: linear-gradient(135deg, var(--green) 0%, #1fbf7a 100%);
+    color: #fff;
+    box-shadow: 0 3px 12px #27c98544;
+    animation: pulse-turn 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse-turn {
+    0%, 100% { box-shadow: 0 3px 12px #27c98544; }
+    50% { box-shadow: 0 3px 20px #27c98588; }
+  }
+
+  /* Score pills */
+  #scoreboard {
+    display: flex; flex-wrap: wrap; gap: 0.5rem; width: 100%;
+  }
+  .score-pill {
+    display: flex; align-items: center; gap: 0.4rem;
+    background: var(--bg-card); border: 1.5px solid var(--border);
+    border-radius: 20px; padding: 0.35rem 0.85rem;
+    font-size: 0.9rem; font-weight: 800;
+    transition: border-color .2s;
+  }
+  .score-pill .pill-icon { font-size: 0.8rem; }
+  .score-pill .pill-score {
+    background: var(--bg-card2); border-radius: 10px;
+    padding: 0.05rem 0.5rem; font-size: 0.82rem;
+    color: var(--text-dim);
+  }
+  .score-pill.active { border-color: var(--gold); }
+  .score-pill.active .pill-score { color: var(--gold); }
+  .score-pill.active .pill-icon { filter: none; }
+
+  /* Board */
+  #board {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 10px; width: 100%;
+  }
+  .card {
+    aspect-ratio: 1;
+    border-radius: 12px;
+    background: var(--card-face);
+    border: 1.5px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.6rem; cursor: pointer;
+    user-select: none;
+    transition: background .18s, transform .18s, border-color .18s, box-shadow .18s;
+    position: relative; overflow: hidden;
+  }
+  .card .card-back {
+    width: 60%; height: 60%; opacity: 0.25;
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%237b5ea7' d='M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5'/%3E%3C/svg%3E") center/contain no-repeat;
+  }
+  .card:hover:not(.revealed):not(.matched) {
+    background: var(--card-hover);
+    border-color: var(--purple);
+    transform: scale(1.04);
+  }
+  .card.revealed {
+    background: var(--revealed);
+    border-color: var(--purple-lt);
+    box-shadow: 0 0 12px #7b5ea744;
+    animation: flip-in .15s ease;
+  }
+  .card.matched {
+    background: var(--matched);
+    border-color: var(--green);
+    cursor: default;
+    box-shadow: 0 0 10px #27c98533;
+  }
+  .card.nomatch {
+    border-color: var(--pink);
+    box-shadow: 0 0 10px #e94f8b44;
+    animation: shake .3s ease;
+  }
+  @keyframes flip-in {
+    from { transform: scaleX(0.7); opacity: .6; }
+    to   { transform: scaleX(1);   opacity: 1; }
+  }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25%  { transform: translateX(-4px); }
+    75%  { transform: translateX(4px); }
+  }
+
+  /* ── Winner Modal ── */
+  #winner-overlay {
+    display: none; position: fixed; inset: 0; z-index: 200;
+    background: #0009; backdrop-filter: blur(6px);
+    align-items: center; justify-content: center;
+  }
+  #winner-overlay.show { display: flex; }
+  #winner-modal {
+    background: var(--bg-card);
+    border: 2px solid var(--gold);
+    border-radius: 24px;
+    padding: 2.2rem 2.5rem;
+    width: 340px; max-width: 90vw;
+    text-align: center;
+    display: flex; flex-direction: column; gap: 1rem;
+    box-shadow: 0 0 60px #f5a62344, var(--shadow);
+    animation: modal-in .35s cubic-bezier(.17,.67,.3,1.3);
+  }
+  @keyframes modal-in {
+    from { transform: scale(.8); opacity: 0; }
+    to   { transform: scale(1);  opacity: 1; }
+  }
+  .trophy { font-size: 3rem; animation: bounce-trophy 1s ease infinite alternate; }
+  @keyframes bounce-trophy { from { transform: translateY(0); } to { transform: translateY(-8px); } }
+  #modal-title { font-size: 1.6rem; font-weight: 900; color: var(--gold); }
+  #modal-result { font-size: 1.35rem; font-weight: 900; }
+  #modal-result.win { color: var(--pink); }
+  #modal-result.lose { color: var(--text-dim); }
+  #modal-scores { display: flex; flex-direction: column; gap: 0.5rem; }
+  .modal-score-row {
+    background: var(--bg-card2); border-radius: 10px;
+    padding: 0.5rem 1rem; display: flex; align-items: center; gap: 0.5rem;
+    font-weight: 700; font-size: 0.95rem;
+  }
+  .modal-score-row .ms-icon { font-size: 0.9rem; }
+  .modal-score-row .ms-name { flex: 1; text-align: left; }
+  .modal-score-row .ms-pts { color: var(--text-dim); }
+  #btn-play-again {
+    background: linear-gradient(135deg, var(--pink) 0%, var(--purple) 100%);
+    color: #fff; padding: 0.8rem 1.5rem; border-radius: 12px; border: none;
+    cursor: pointer; font-size: 1.05rem; font-weight: 800; font-family: inherit;
+    box-shadow: 0 4px 16px #e94f8b44;
+    transition: transform .15s, box-shadow .15s;
+  }
+  #btn-play-again:hover { transform: translateY(-2px); box-shadow: 0 6px 24px #e94f8b66; }
+
+  @media (max-width: 540px) {
+    .card { font-size: 1.1rem; border-radius: 9px; }
+    #board { gap: 6px; }
+    #header h1 { font-size: 1.6rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div id="header">
+  <div class="logo-icon">🃏</div>
+  <div id="header-inner">
+    <h1>Memory Game</h1>
+    <p>Multiplayer card matching — find all the pairs!</p>
+  </div>
+</div>
+
+<!-- Connection dot -->
+<div id="conn-dot"><span></span><span id="conn-label">Disconnected</span></div>
+
+<!-- ── LOBBY ── -->
+<div id="lobby-screen" class="screen">
+  <div id="lobby-box">
+    <div class="lobby-title">👋 Let's Play!</div>
+
+    <div>
+      <div class="field-label">Your Name</div>
+      <input class="inp" id="inp-name" placeholder="Enter your name…" maxlength="20"/>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-create" id="btn-create">✨ Create Room</button>
+      <button class="btn btn-joinroom" id="btn-joinroom">🔗 Join Room</button>
+    </div>
+
+    <div id="join-section" style="display:none; flex-direction:column; gap:0.8rem;">
+      <div class="divider">— OR JOIN —</div>
+      <div>
+        <div class="field-label">Room ID</div>
+        <input class="inp" id="inp-room" placeholder="Enter room code…" maxlength="6"/>
+      </div>
+      <button class="btn btn-joingame" id="btn-joingame">🚀 Join Game</button>
+    </div>
+
+    <div id="status"></div>
+  </div>
+</div>
+
+<!-- ── WAITING ROOM ── -->
+<div id="waiting-screen" class="screen hidden">
+  <div id="waiting-box">
+    <div class="waiting-emoji">⏳</div>
+    <div class="waiting-title">Waiting for players…</div>
+    <div id="waiting-subtitle">Share this Room ID with friends:</div>
+    <div id="room-code-wrap">
+      <div id="room-code">----</div>
+      <button class="btn-copy" id="btn-copy">📋 Copy</button>
+    </div>
+    <div id="auto-start-hint">
+      <span class="dot-green"></span>
+      <span id="auto-hint-text">Game starts automatically when 2+ players join</span>
+    </div>
+    <div id="player-chips"></div>
+    <button id="btn-start">▶ Start Game</button>
+    <div id="start-hint"></div>
+  </div>
+</div>
+
+<!-- ── GAME ── -->
+<div id="game-screen" class="screen hidden">
+  <div id="turn-banner-wrap"><div id="turn-banner">⏳ Waiting…</div></div>
+  <div id="scoreboard"></div>
+  <div id="board"></div>
+</div>
+
+<!-- ── WINNER MODAL ── -->
+<div id="winner-overlay">
+  <div id="winner-modal">
+    <div class="trophy">🏆</div>
+    <div id="modal-title">Game Over!</div>
+    <div id="modal-result"></div>
+    <div id="modal-scores"></div>
+    <button id="btn-play-again" onclick="location.reload()">🔄 Play Again</button>
+  </div>
+</div>
+
+<script>
+  const $ = id => document.getElementById(id);
+  let ws, myName, isCreator = false;
+  let lastScores = [];
+
+  const host = location.hostname || "localhost";
+  const port = location.port || "8080";
+
+  // ── Connection dot
+  function setConn(on) {
+    const d = $("conn-dot");
+    $("conn-label").textContent = on ? "Connected" : "Disconnected";
+    d.classList.toggle("connected", on);
+  }
+
+  // ── Join section toggle
+  $("btn-joinroom").onclick = () => {
+    const js = $("join-section");
+    js.style.display = js.style.display === "flex" ? "none" : "flex";
+  };
+
+  function connect() {
+    ws = new WebSocket(`ws://${host}:${port}`);
+    ws.onopen  = () => setConn(true);
+    ws.onclose = () => { setConn(false); setStatus("Disconnected."); };
+    ws.onerror = () => setStatus("Connection error.");
+    ws.onmessage = e => handle(e.data);
+  }
+
+  function setStatus(msg) { $("status").textContent = msg; }
+
+  $("btn-create").onclick = () => {
+    const name = $("inp-name").value.trim();
+    if (!name) { setStatus("Enter your name."); return; }
+    myName = name; isCreator = false;
+    connect();
+    ws.onopen = () => { setConn(true); ws.send("CREATE:" + name); };
+  };
+
+  $("btn-joingame").onclick = () => {
+    const name = $("inp-name").value.trim();
+    const code = $("inp-room").value.trim();
+    if (!name) { setStatus("Enter your name."); return; }
+    if (!code)  { setStatus("Enter a room code."); return; }
+    myName = name; isCreator = false;
+    connect();
+    ws.onopen = () => {
+      setConn(true);
+      ws.send("JOIN:" + code + ":" + name);
+      $("join-section").style.display = "none";
+    };
+  };
+
+  $("btn-start").onclick = () => { if (ws && isCreator) ws.send("START_GAME"); };
+
+  $("btn-copy").onclick = () => {
+    const code = $("room-code").textContent;
+    navigator.clipboard?.writeText(code).then(() => {
+      $("btn-copy").textContent = "✅ Copied!";
+      setTimeout(() => $("btn-copy").textContent = "📋 Copy", 1500);
+    });
+  };
+
+  // ── Screens
+  function showScreen(s) {
+    ["lobby-screen","waiting-screen","game-screen"].forEach(id => {
+      $(id).classList.toggle("hidden", id !== s + "-screen");
+    });
+  }
+
+  // ── Message handler
+  function handle(msg) {
+    if (msg.startsWith("ROOM:")) {
+      $("room-code").textContent = msg.slice(5);
+      showScreen("waiting");
+
+    } else if (msg === "YOU_ARE_CREATOR") {
+      isCreator = true;
+      $("btn-start").style.display = "block";
+      $("auto-hint-text").textContent = "You can start the game when ready!";
+      updateStartBtn();
+
+    } else if (msg.startsWith("PLAYERS:")) {
+      const names = msg.slice(8).split(",");
+      const wrap = $("player-chips"); wrap.innerHTML = "";
+      names.forEach((n, i) => {
+        const chip = document.createElement("div");
+        chip.className = "player-chip" + (i === 0 ? " creator" : "");
+        chip.innerHTML = `<span class="chip-icon">${i === 0 ? "👑" : "👤"}</span>${n}`;
+        wrap.appendChild(chip);
+      });
+      updateStartBtn(names.length);
+
+    } else if (msg === "START") {
+      showScreen("game");
+      buildBoard();
+      $("winner-overlay").classList.remove("show");
+
+    } else if (msg.startsWith("SCORE:")) {
+      renderScores(msg.slice(6));
+
+    } else if (msg.startsWith("TURN:")) {
+      const who = msg.slice(5);
+      const banner = $("turn-banner");
+      if (who === myName) {
+        banner.textContent = "⭐ Your Turn!";
+        banner.classList.add("your-turn");
+      } else {
+        banner.textContent = `⏰ ${who}'s turn`;
+        banner.classList.remove("your-turn");
+      }
+      highlightActive(who);
+
+    } else if (msg.startsWith("FLIP:")) {
+      const [, idx, sym] = msg.split(":");
+      flipCard(+idx, sym);
+
+    } else if (msg.startsWith("MATCH:")) {
+      const [, a, b] = msg.split(":");
+      matchCard(+a); matchCard(+b);
+
+    } else if (msg.startsWith("NOMATCH:")) {
+      const [, a, b] = msg.split(":");
+      nomatchCard(+a); nomatchCard(+b);
+
+    } else if (msg.startsWith("HIDE:")) {
+      const [, a, b] = msg.split(":");
+      hideCard(+a); hideCard(+b);
+
+    } else if (msg.startsWith("WINNER:")) {
+      const who = msg.slice(7);
+      showWinner(who);
+
+    } else if (msg.startsWith("ERROR:")) {
+      setStatus(msg.slice(6));
+    }
+  }
+
+  function updateStartBtn(count) {
+    if (!isCreator) return;
+    if (count === undefined) count = $("player-chips").children.length;
+    const btn = $("btn-start"), hint = $("start-hint");
+    if (count < 2) {
+      btn.disabled = true;
+      hint.textContent = "Need at least 2 players to start.";
+    } else {
+      btn.disabled = false;
+      hint.textContent = `${count} player${count > 1 ? "s" : ""} ready — you can start!`;
+    }
+  }
+
+  // ── Board
+  function buildBoard() {
+    const b = $("board"); b.innerHTML = "";
+    for (let i = 0; i < 36; i++) {
+      const c = document.createElement("div");
+      c.className = "card"; c.id = "c" + i;
+      c.innerHTML = `<div class="card-back"></div>`;
+      c.dataset.idx = i;
+      c.onclick = () => { if (ws) ws.send("PICK:" + i); };
+      b.appendChild(c);
+    }
+  }
+
+  function flipCard(idx, sym) {
+    const c = $("c" + idx); if (!c) return;
+    c.textContent = sym;
+    c.classList.add("revealed");
+    c.classList.remove("nomatch");
+  }
+  function matchCard(idx) {
+    const c = $("c" + idx); if (!c) return;
+    c.classList.remove("revealed", "nomatch");
+    c.classList.add("matched");
+  }
+  function nomatchCard(idx) {
+    const c = $("c" + idx); if (!c) return;
+    c.classList.add("nomatch");
+  }
+  function hideCard(idx) {
+    const c = $("c" + idx); if (!c) return;
+    c.innerHTML = `<div class="card-back"></div>`;
+    c.classList.remove("revealed", "nomatch");
+  }
+
+  // ── Scores
+  let scoreMap = {};
+  function renderScores(raw) {
+    const sb = $("scoreboard"); sb.innerHTML = "";
+    const parts = raw.split(":");
+    scoreMap = {};
+    for (let i = 0; i < parts.length; i += 2) {
+      const n = parts[i], s = parts[i + 1];
+      scoreMap[n] = +s;
+      const d = document.createElement("div");
+      d.className = "score-pill"; d.id = "sc-" + n;
+      const icon = n === myName ? "⭐" : "👤";
+      d.innerHTML = `<span class="pill-icon">${icon}</span>${n}<span class="pill-score">${s}</span>`;
+      sb.appendChild(d);
+    }
+    lastScores = parts;
+  }
+
+  function highlightActive(who) {
+    document.querySelectorAll(".score-pill").forEach(el => el.classList.remove("active"));
+    const el = $("sc-" + who); if (el) el.classList.add("active");
+  }
+
+  // ── Winner modal
+  function showWinner(who) {
+    const isWin = who === myName;
+    $("modal-result").textContent = isWin ? "🎉 YOU WIN!" : `🏆 ${who} wins!`;
+    $("modal-result").className = isWin ? "win" : "lose";
+
+    // Build score list sorted by score
+    const entries = [];
+    for (let i = 0; i < lastScores.length; i += 2) {
+      entries.push({ name: lastScores[i], score: +lastScores[i + 1] });
+    }
+    entries.sort((a, b) => b.score - a.score);
+
+    const ms = $("modal-scores"); ms.innerHTML = "";
+    entries.forEach(e => {
+      const row = document.createElement("div");
+      row.className = "modal-score-row";
+      const icon = e.name === who ? "🥇" : (e.name === myName ? "⭐" : "👤");
+      row.innerHTML = `<span class="ms-icon">${icon}</span><span class="ms-name">${e.name}</span><span class="ms-pts">${e.score} pts</span>`;
+      ms.appendChild(row);
+    });
+
+    $("winner-overlay").classList.add("show");
+  }
+</script>
+</body>
+</html>
