@@ -490,8 +490,7 @@
   let ws, myName, isCreator = false;
   let lastScores = [];
 
-  const host = location.hostname || "localhost";
-  const port = location.port || "8080";
+  
 
   // ── Connection dot
   function setConn(on) {
@@ -507,13 +506,14 @@
   };
 
   function connect() {
-    const protocol = location.protocol === "https:" ? "wss" : "ws";
-    ws = new WebSocket(`${protocol}://${location.host}`);
-    ws.onopen  = () => setConn(true);
-    ws.onclose = () => { setConn(false); setStatus("Disconnected."); };
-    ws.onerror = () => setStatus("Connection error.");
-    ws.onmessage = e => handle(e.data);
-  }
+  const protocol = location.protocol === "https:" ? "wss" : "ws";
+  ws = new WebSocket(`${protocol}://${location.host}`);
+
+  ws.onopen  = () => setConn(true);
+  ws.onclose = () => { setConn(false); setStatus("Disconnected."); };
+  ws.onerror = () => setStatus("Connection error.");
+  ws.onmessage = e => handle(e.data);
+}
 
   function setStatus(msg) { $("status").textContent = msg; }
 
