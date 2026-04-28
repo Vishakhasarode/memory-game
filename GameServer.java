@@ -5,7 +5,7 @@ import java.nio.file.*;
 import java.security.MessageDigest;
 import java.util.*;
 import java.util.concurrent.*;
-import java.net.InetAddress
+import java.net.InetAddress;
 
 public class GameServer {
 
