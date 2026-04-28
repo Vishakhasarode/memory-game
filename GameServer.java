@@ -5,6 +5,7 @@ import java.nio.file.*;
 import java.security.MessageDigest;
 import java.util.*;
 import java.util.concurrent.*;
+import java.net.InetAddress
 
 public class GameServer {
 
@@ -21,7 +22,7 @@ public class GameServer {
         String envPort = System.getenv("PORT");
         if (envPort != null) port = Integer.parseInt(envPort.trim());
 
-        ServerSocket ss = new ServerSocket(port);
+        ServerSocket ss = new ServerSocket(port,50,InetAddress.getByName("0.0.0.0"));
         System.out.println("Memory Game server on port " + port);
 
         while (true) {
