@@ -507,7 +507,8 @@
   };
 
   function connect() {
-    ws = new WebSocket(`ws://${host}:${port}`);
+    const protocol = location.protocol === "https:" ? "wss" : "ws";
+    ws = new WebSocket(`${protocol}://${location.host}`);
     ws.onopen  = () => setConn(true);
     ws.onclose = () => { setConn(false); setStatus("Disconnected."); };
     ws.onerror = () => setStatus("Connection error.");
